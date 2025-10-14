@@ -57,6 +57,9 @@ def carregar_dados():
         st.session_state.jogadores = conn.query('SELECT * FROM jogadores;', ttl=5)
         st.session_state.jogos = conn.query('SELECT * FROM jogos;', ttl=5)
 
+        # CORREÇÃO: Inicializa o dicionário antes de tentar adicionar valores a ele.
+        st.session_state.ciclo_info = {}
+        
         ciclo_info_df = conn.query('SELECT * FROM ciclo_info WHERE id = 1;', ttl=5)
         if not ciclo_info_df.empty:
             st.session_state.ciclo_ativo = bool(ciclo_info_df.iloc[0]['ciclo_ativo'])
@@ -115,8 +118,6 @@ def salvar_ciclo_info():
         st.error(f"Não foi possível guardar as informações do ciclo. Erro: {e}")
 
 
-# --- Restante do código (Lógica da UI) ---
-
 def inicializar_session_state():
     if 'dados_carregados' not in st.session_state:
         carregar_dados()
@@ -124,17 +125,16 @@ def inicializar_session_state():
     if 'editing_game_index' not in st.session_state:
         st.session_state.editing_game_index = None
 
-# --- NOVA FUNÇÃO ADICIONADA ---
 def exibir_dashboard_ciclo():
     """Mostra as métricas principais do ciclo atual."""
-    if not st.session_state.ciclo_ativo:
+    if not st.session_state.get('ciclo_ativo', False):
         return
 
     st.subheader("📊 Dashboard do Ciclo")
 
     info = st.session_state.ciclo_info
-    inicio_str = info['inicio'].strftime('%d/%m/%Y') if info['inicio'] else 'N/D'
-    fim_str = info['fim'].strftime('%d/%m/%Y') if info['fim'] else 'N/D'
+    inicio_str = info.get('inicio').strftime('%d/%m/%Y') if info.get('inicio') else 'N/D'
+    fim_str = info.get('fim').strftime('%d/%m/%Y') if info.get('fim') else 'N/D'
     st.write(f"**Período:** {inicio_str} a {fim_str}")
 
     total_jogos = len(st.session_state.jogos)
@@ -205,7 +205,6 @@ def calcular_ranking():
 
 def pagina_ranking():
     st.header("🏆 Ranking Atual")
-    # --- CHAMADA DA NOVA FUNÇÃO ---
     exibir_dashboard_ciclo()
     
     if 'ranking' not in st.session_state or st.session_state.ranking.empty: calcular_ranking()
@@ -229,7 +228,6 @@ def pagina_tabela_de_jogos():
         return
     if not st.session_state.ciclo_ativo: st.warning("O ciclo de jogos não está ativo."); return
 
-    # Adicionado para evitar erro se não houver jogos
     if st.session_state.jogos.empty:
         st.info("Ainda não há jogos neste ciclo.")
         return
