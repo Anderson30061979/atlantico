@@ -130,7 +130,7 @@ def exibir_dashboard_ciclo():
     if not st.session_state.get('ciclo_ativo', False):
         return
 
-    st.subheader("📊 Dashboard do Ciclo")
+    st.subheader("📊 Dados dos Jogos do Ciclo Atual")
 
     info = st.session_state.ciclo_info
     inicio_str = info.get('inicio').strftime('%d/%m/%Y') if info.get('inicio') else 'N/D'
@@ -204,7 +204,7 @@ def calcular_ranking():
 
 
 def pagina_ranking():
-    st.header("🏆 Ranking Atual")
+    st.header("🏆 Ranking Atual - Atântico Tênis Clube")
     exibir_dashboard_ciclo()
     
     if 'ranking' not in st.session_state or st.session_state.ranking.empty: calcular_ranking()
@@ -409,3 +409,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
