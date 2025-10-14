@@ -116,8 +116,6 @@ def salvar_ciclo_info():
 
 
 # --- Restante do código (Lógica da UI) ---
-# O resto do código permanece praticamente idêntico, pois ele opera sobre os
-# DataFrames no st.session_state, independentemente de onde os dados vieram.
 
 def inicializar_session_state():
     if 'dados_carregados' not in st.session_state:
@@ -126,6 +124,34 @@ def inicializar_session_state():
     if 'editing_game_index' not in st.session_state:
         st.session_state.editing_game_index = None
 
+# --- NOVA FUNÇÃO ADICIONADA ---
+def exibir_dashboard_ciclo():
+    """Mostra as métricas principais do ciclo atual."""
+    if not st.session_state.ciclo_ativo:
+        return
+
+    st.subheader("📊 Dashboard do Ciclo")
+
+    info = st.session_state.ciclo_info
+    inicio_str = info['inicio'].strftime('%d/%m/%Y') if info['inicio'] else 'N/D'
+    fim_str = info['fim'].strftime('%d/%m/%Y') if info['fim'] else 'N/D'
+    st.write(f"**Período:** {inicio_str} a {fim_str}")
+
+    total_jogos = len(st.session_state.jogos)
+    if total_jogos > 0:
+        jogos_concluidos = len(st.session_state.jogos[st.session_state.jogos['Status'] != 'Pendente'])
+        percent_concluido = (jogos_concluidos / total_jogos * 100)
+    else:
+        jogos_concluidos = 0
+        percent_concluido = 0
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total de Partidas", f"{total_jogos}")
+    col2.metric("Partidas Concluídas", f"{jogos_concluidos}")
+    col3.metric("Progresso do Ciclo", f"{percent_concluido:.1f}%")
+
+    st.progress(percent_concluido / 100)
+    st.divider()
 
 def gerar_tabela_jogos_por_classe(classe):
     jogadores_classe = st.session_state.jogadores[st.session_state.jogadores['Classe'] == classe]['Nome'].tolist()
@@ -179,6 +205,9 @@ def calcular_ranking():
 
 def pagina_ranking():
     st.header("🏆 Ranking Atual")
+    # --- CHAMADA DA NOVA FUNÇÃO ---
+    exibir_dashboard_ciclo()
+    
     if 'ranking' not in st.session_state or st.session_state.ranking.empty: calcular_ranking()
     if st.session_state.ranking.empty: st.info("O ranking será exibido aqui."); return
     classes_validas = [c for c in st.session_state.ranking['Classe'].unique() if pd.notna(c)]
@@ -382,4 +411,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
