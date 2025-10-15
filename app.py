@@ -289,7 +289,7 @@ def handle_fechar_ciclo():
 def main():
     # A criação das tabelas no Supabase é feita pelo script SQL, não mais aqui.
     inicializar_session_state() 
-    st.sidebar.title("🎾 Menu de Navegação")
+    st.sidebar.title("🎾 Menu de Opções")
     status_ciclo = 'Ativo' if st.session_state.ciclo_ativo else 'Inativo'
     st.sidebar.info(f"Ciclo Atual: **{status_ciclo}**")
     paginas = {"Ranking": pagina_ranking, "Tabela de Jogos": pagina_tabela_de_jogos, "Administração": pagina_administracao}
@@ -298,3 +298,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
