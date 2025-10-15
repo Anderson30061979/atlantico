@@ -27,7 +27,8 @@ except Exception as e:
 def carregar_dados():
     """Carrega todos os dados do Supabase para o session_state."""
     with st.spinner("A carregar dados do banco de dados..."):
-        st.session_state.jogadores = conn.query('SELECT * FROM jogadores ORDER BY "Nome";', ttl=10)
+        # CORREÇÃO: Simplificada a consulta para maior compatibilidade. A ordenação será feita depois.
+        st.session_state.jogadores = conn.query('SELECT * FROM jogadores;', ttl=10)
         st.session_state.jogos = conn.query('SELECT * FROM jogos;', ttl=10)
         
         if 'Data' in st.session_state.jogos.columns:
@@ -49,7 +50,8 @@ def salvar_jogadores():
     try:
         with st.spinner("A guardar jogadores..."):
             with conn.session as s:
-                s.execute(sqlalchemy.text('TRUNCATE TABLE jogadores RESTART IDENTITY CASCADE;'))
+                # CORREÇÃO: Usando DELETE que é mais padrão que TRUNCATE.
+                s.execute(sqlalchemy.text('DELETE FROM jogadores;'))
                 st.session_state.jogadores.to_sql('jogadores', s.connection(), if_exists='append', index=False)
                 s.commit()
         st.toast("Lista de jogadores guardada!", icon="✅")
@@ -61,7 +63,8 @@ def salvar_jogos():
     try:
         with st.spinner("A atualizar jogos..."):
             with conn.session as s:
-                s.execute(sqlalchemy.text('TRUNCATE TABLE jogos RESTART IDENTITY CASCADE;'))
+                # CORREÇÃO: Usando DELETE que é mais padrão que TRUNCATE.
+                s.execute(sqlalchemy.text('DELETE FROM jogos;'))
                 st.session_state.jogos.to_sql('jogos', s.connection(), if_exists='append', index=False)
                 s.commit()
         st.toast("Tabela de jogos guardada!", icon="📅")
@@ -93,6 +96,8 @@ def salvar_ciclo_info():
 def inicializar_session_state():
     if 'dados_carregados' not in st.session_state:
         carregar_dados()
+        # Ordena os jogadores aqui, depois de carregar
+        st.session_state.jogadores = st.session_state.jogadores.sort_values(by="Nome").reset_index(drop=True)
         st.session_state.dados_carregados = True
     if 'editing_game_index' not in st.session_state:
         st.session_state.editing_game_index = None
@@ -293,4 +298,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
