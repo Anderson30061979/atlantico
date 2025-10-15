@@ -13,19 +13,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- Conexão com o Banco de Dados Supabase ---
-# As credenciais são lidas de .streamlit/secrets.toml
+# --- Conexão com o Banco de Dados Turso (via Secrets) ---
 try:
-    conn = st.connection("supabase", type="sql")
+    conn = st.connection("turso", type="sql")
 except Exception as e:
-    st.error("Não foi possível conectar ao banco de dados. Verifique os 'Secrets' da sua aplicação.")
+    st.error(f"Não foi possível conectar ao banco de dados: {e}")
     st.stop()
 
 
 # --- Funções do Banco de Dados ---
 
 def carregar_dados():
-    """Carrega todos os dados do Supabase para o session_state."""
+    """Carrega todos os dados do Turso para o session_state."""
     with st.spinner("A carregar dados do banco de dados..."):
         st.session_state.jogadores = conn.query('SELECT * FROM jogadores ORDER BY "Nome";', ttl=10)
         st.session_state.jogos = conn.query('SELECT * FROM jogos;', ttl=10)
@@ -45,11 +44,10 @@ def carregar_dados():
             st.session_state.ciclo_info = {"inicio": None, "fim": None}
 
 def salvar_jogadores():
-    """Salva o dataframe de jogadores no Supabase."""
     try:
         with st.spinner("A guardar jogadores..."):
             with conn.session as s:
-                s.execute(sqlalchemy.text('TRUNCATE TABLE jogadores RESTART IDENTITY;'))
+                s.execute(sqlalchemy.text('DELETE FROM jogadores;'))
                 st.session_state.jogadores.to_sql('jogadores', s.connection(), if_exists='append', index=False)
                 s.commit()
         st.toast("Lista de jogadores guardada!", icon="✅")
@@ -57,11 +55,10 @@ def salvar_jogadores():
         st.error(f"Não foi possível guardar os jogadores. Erro: {e}")
 
 def salvar_jogos():
-    """Salva o dataframe de jogos no Supabase."""
     try:
         with st.spinner("A atualizar jogos..."):
             with conn.session as s:
-                s.execute(sqlalchemy.text('TRUNCATE TABLE jogos RESTART IDENTITY;'))
+                s.execute(sqlalchemy.text('DELETE FROM jogos;'))
                 st.session_state.jogos.to_sql('jogos', s.connection(), if_exists='append', index=False)
                 s.commit()
         st.toast("Tabela de jogos guardada!", icon="📅")
@@ -69,18 +66,11 @@ def salvar_jogos():
         st.error(f"Não foi possível guardar os jogos. Erro: {e}")
 
 def salvar_ciclo_info():
-    """Salva o estado do ciclo no Supabase."""
     try:
         with st.spinner("A guardar informações do ciclo..."):
-            info_para_salvar = {
-                'id': 1,
-                'ciclo_ativo': st.session_state.ciclo_ativo,
-                'inicio': st.session_state.ciclo_info.get('inicio'),
-                'fim': st.session_state.ciclo_info.get('fim'),
-            }
-            df_info = pd.DataFrame([info_para_salvar])
+            info = { 'id': 1, 'ciclo_ativo': st.session_state.ciclo_ativo, 'inicio': st.session_state.ciclo_info.get('inicio'), 'fim': st.session_state.ciclo_info.get('fim')}
+            df_info = pd.DataFrame([info])
             with conn.session as s:
-                # Usamos ON CONFLICT para atualizar a linha se ela já existir (id=1)
                 s.execute(sqlalchemy.text('DELETE FROM ciclo_info WHERE id=1;'))
                 df_info.to_sql('ciclo_info', s.connection(), if_exists='append', index=False)
                 s.commit()
@@ -88,8 +78,7 @@ def salvar_ciclo_info():
     except Exception as e:
         st.error(f"Não foi possível guardar as informações do ciclo. Erro: {e}")
 
-
-# --- Restante do código (Lógica da UI - sem alterações) ---
+# --- O restante do código permanece o mesmo ---
 
 def inicializar_session_state():
     if 'dados_carregados' not in st.session_state:
@@ -111,9 +100,7 @@ def exibir_dashboard_ciclo():
         percent_concluido = (jogos_concluidos / total_jogos * 100)
     else: jogos_concluidos, percent_concluido = 0, 0
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total de Partidas", f"{total_jogos}")
-    c2.metric("Partidas Concluídas", f"{jogos_concluidos}")
-    c3.metric("Progresso do Ciclo", f"{percent_concluido:.1f}%")
+    c1.metric("Total de Partidas", f"{total_jogos}"); c2.metric("Partidas Concluídas", f"{jogos_concluidos}"); c3.metric("Progresso do Ciclo", f"{percent_concluido:.1f}%")
     st.progress(percent_concluido / 100)
     st.divider()
 
@@ -153,8 +140,7 @@ def calcular_ranking():
     st.session_state.ranking = rdf.sort_values(by=['Classe', 'Pontos', 'Saldo de Sets'], ascending=[True, False, False]).reset_index(drop=True)
 
 def pagina_ranking():
-    st.header("🏆 Ranking Atual - Atlântico Tênis Clube")
-    exibir_dashboard_ciclo()
+    st.header("🏆 Ranking Atual - Atlântico Tênis Clube"); exibir_dashboard_ciclo()
     if 'ranking' not in st.session_state or st.session_state.ranking.empty: calcular_ranking()
     if st.session_state.ranking.empty: st.info("O ranking será exibido aqui."); return
     for classe in sorted([c for c in st.session_state.ranking['Classe'].unique() if pd.notna(c)]):
@@ -283,7 +269,6 @@ def handle_fechar_ciclo():
             salvar_jogadores(); salvar_jogos(); salvar_ciclo_info(); st.rerun()
 
 def main():
-    # A criação das tabelas no Supabase é feita pelo script SQL, não mais aqui.
     inicializar_session_state() 
     st.sidebar.title("🎾 Menu de Navegação")
     status_ciclo = 'Ativo' if st.session_state.ciclo_ativo else 'Inativo'
@@ -294,5 +279,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
