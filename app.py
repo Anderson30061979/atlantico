@@ -54,9 +54,10 @@ def salvar_jogadores():
                 s.execute(sqlalchemy.text('DELETE FROM jogadores;'))
                 st.session_state.jogadores.to_sql('jogadores', s.connection(), if_exists='append', index=False)
                 s.commit()
-        st.toast("Lista de jogadores guardada!", icon="✅")
     except Exception as e:
         st.error(f"Não foi possível guardar os jogadores. Erro: {e}")
+        return False # Retorna False em caso de erro
+    return True # Retorna True em caso de sucesso
 
 def salvar_jogos():
     """Salva o dataframe de jogos no Supabase."""
@@ -67,9 +68,10 @@ def salvar_jogos():
                 s.execute(sqlalchemy.text('DELETE FROM jogos;'))
                 st.session_state.jogos.to_sql('jogos', s.connection(), if_exists='append', index=False)
                 s.commit()
-        st.toast("Tabela de jogos guardada!", icon="📅")
     except Exception as e:
         st.error(f"Não foi possível guardar os jogos. Erro: {e}")
+        return False
+    return True
 
 def salvar_ciclo_info():
     """Salva o estado do ciclo no Supabase."""
@@ -86,9 +88,10 @@ def salvar_ciclo_info():
                 s.execute(sqlalchemy.text('DELETE FROM ciclo_info WHERE id=1;'))
                 df_info.to_sql('ciclo_info', s.connection(), if_exists='append', index=False)
                 s.commit()
-        st.toast("Informações do ciclo guardadas!", icon="ℹ️")
     except Exception as e:
         st.error(f"Não foi possível guardar as informações do ciclo. Erro: {e}")
+        return False
+    return True
 
 
 # --- (Lógica da UI) ---
@@ -197,7 +200,10 @@ def pagina_tabela_de_jogos():
                     if c1.button("✏️ Editar", key=f"ed_{idx}"): st.session_state.editing_game_index = idx; st.rerun()
                     if c2.button("🔄 Desfazer", key=f"un_{idx}"):
                         st.session_state.jogos.loc[idx, ['Resultado', 'Status', 'Detalhes', 'Data']] = ['-', 'Pendente', '', pd.NaT]
-                        salvar_jogos(); calcular_ranking(); st.success("Lançamento desfeito!"); st.rerun()
+                        if salvar_jogos():
+                            calcular_ranking()
+                            st.success("Lançamento desfeito com sucesso!")
+                            # Não executa st.rerun() para a mensagem persistir
 
 def form_registro(jogos_pendentes, classe, index_jogo_editar=None):
     is_edit = index_jogo_editar is not None
@@ -234,7 +240,11 @@ def form_registro(jogos_pendentes, classe, index_jogo_editar=None):
                     j1, j2 = jogo_sel.split(' vs '); idx = jogos_pendentes[(jogos_pendentes['Jogador 1']==j1)&(jogos_pendentes['Jogador 2']==j2)].index[0]
                 st.session_state.jogos.loc[idx, ['Resultado', 'Detalhes', 'Status', 'Data']] = [res, det, 'Finalizado', data_partida]
                 if is_edit: st.session_state.editing_game_index = None
-                salvar_jogos(); calcular_ranking(); st.success("Resultado gravado!"); st.rerun()
+                
+                if salvar_jogos():
+                    calcular_ranking()
+                    st.success("Resultado gravado com sucesso!")
+                    # Não executa st.rerun() para a mensagem persistir
             except (ValueError, TypeError): st.error("Placar deve conter apenas números.")
 
 def pagina_administracao():
@@ -249,7 +259,9 @@ def pagina_administracao():
                 if len(classes) == 0: st.error("Nenhum jogador com classe definida."); return
                 st.session_state.jogos = pd.concat([gerar_tabela_jogos_por_classe(c) for c in classes], ignore_index=True)
                 st.session_state.ciclo_ativo, st.session_state.ciclo_info = True, {"inicio": data_inicio, "fim": data_fim}
-                salvar_jogos(); salvar_ciclo_info(); st.rerun()
+                if salvar_jogos() and salvar_ciclo_info():
+                    st.success("Novo ciclo iniciado com sucesso!")
+                    # Não executa st.rerun()
     if st.button("🏁 Fechar Ciclo", disabled=not st.session_state.ciclo_ativo, type="primary"): st.session_state.show_fechar_ciclo = True
     if st.session_state.get('show_fechar_ciclo'): handle_fechar_ciclo()
     st.divider()
@@ -257,7 +269,10 @@ def pagina_administracao():
     jog_edit_df = st.data_editor(st.session_state.jogadores, num_rows="dynamic", use_container_width=True, key="editor_jogadores")
     if st.button("Salvar Jogadores"):
         jog_final = jog_edit_df.dropna(subset=['Nome', 'Classe']); jog_final = jog_final[jog_final['Nome'] != '']
-        st.session_state.jogadores = jog_final.reset_index(drop=True); salvar_jogadores(); st.rerun()
+        st.session_state.jogadores = jog_final.reset_index(drop=True)
+        if salvar_jogadores():
+            st.success("Lista de jogadores guardada com sucesso!")
+            # Não executa st.rerun()
 
 def handle_fechar_ciclo():
     jogos_pendentes = st.session_state.jogos[st.session_state.jogos['Status'] == 'Pendente']
@@ -266,9 +281,15 @@ def handle_fechar_ciclo():
         for idx, jogo in jogos_pendentes.iterrows():
             j1, j2 = jogo['Jogador 1'], jogo['Jogador 2']
             c = st.columns([3, 1, 1, 1]); c[0].write(f"**{j1} vs {j2}**")
-            if c[1].button(f"W.O. {j1}", key=f"wo1_{idx}"): st.session_state.jogos.loc[idx, ['Resultado','Detalhes','Status']] = ['2x0','W.O.','W.O.']; salvar_jogos(); st.rerun()
-            if c[2].button(f"W.O. {j2}", key=f"wo2_{idx}"): st.session_state.jogos.loc[idx, ['Resultado','Detalhes','Status']] = ['0x2','W.O.','W.O.']; salvar_jogos(); st.rerun()
-            if c[3].button("Derrota Dupla", key=f"dd_{idx}"): st.session_state.jogos.loc[idx, ['Resultado','Detalhes','Status']] = ['0x0','Derrota Dupla','Finalizado']; salvar_jogos(); st.rerun()
+            if c[1].button(f"W.O. {j1}", key=f"wo1_{idx}"): 
+                st.session_state.jogos.loc[idx, ['Resultado','Detalhes','Status']] = ['2x0','W.O.','W.O.']
+                if salvar_jogos(): st.rerun() # Rerun aqui para atualizar a lista de pendentes
+            if c[2].button(f"W.O. {j2}", key=f"wo2_{idx}"): 
+                st.session_state.jogos.loc[idx, ['Resultado','Detalhes','Status']] = ['0x2','W.O.','W.O.']
+                if salvar_jogos(): st.rerun()
+            if c[3].button("Derrota Dupla", key=f"dd_{idx}"): 
+                st.session_state.jogos.loc[idx, ['Resultado','Detalhes','Status']] = ['0x0','Derrota Dupla','Finalizado']
+                if salvar_jogos(): st.rerun()
     else:
         st.success("Todos os jogos finalizados!")
         if st.button("Confirmar Fechamento do Ciclo"):
@@ -284,7 +305,10 @@ def handle_fechar_ciclo():
             st.session_state.jogadores = jog_atualizado.reset_index()
             st.session_state.ciclo_ativo, st.session_state.show_fechar_ciclo = False, False
             st.session_state.jogos = st.session_state.jogos.iloc[0:0]
-            salvar_jogadores(); salvar_jogos(); salvar_ciclo_info(); st.rerun()
+            if salvar_jogadores() and salvar_jogos() and salvar_ciclo_info():
+                st.balloons()
+                st.success("Ciclo fechado com sucesso! As classes foram atualizadas.")
+                # Não executa st.rerun()
 
 def main():
     # A criação das tabelas no Supabase é feita pelo script SQL, não mais aqui.
@@ -298,5 +322,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
