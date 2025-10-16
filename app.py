@@ -91,7 +91,7 @@ def salvar_ciclo_info():
         st.error(f"Não foi possível guardar as informações do ciclo. Erro: {e}")
 
 
-# --- Restante do código (Lógica da UI) ---
+# --- (Lógica da UI) ---
 
 def inicializar_session_state():
     if 'dados_carregados' not in st.session_state:
@@ -189,7 +189,7 @@ def pagina_tabela_de_jogos():
             jogos_finalizados = jdf[jdf['Status'] != 'Pendente']
             if not jogos_finalizados.empty:
                 opts = jogos_finalizados.apply(lambda x: f"{x['Jogador 1']} vs {x['Jogador 2']}", axis=1)
-                jogo_sel = st.selectbox("Selecione um jogo", opts, index=None, key=f"sel_{classe}")
+                jogo_sel = st.selectbox("Selecione um jogo", opts, index=None, key=f"sel_{classe}", placeholder="Selecione um jogo")
                 if jogo_sel:
                     j1, j2 = jogo_sel.split(' vs ')
                     idx = st.session_state.jogos[(st.session_state.jogos['Jogador 1'] == j1) & (st.session_state.jogos['Jogador 2'] == j2) & (st.session_state.jogos['Classe'] == classe)].index[0]
@@ -212,14 +212,14 @@ def form_registro(jogos_pendentes, classe, index_jogo_editar=None):
             if len(nums) == 6: def_scores[4:], def_stb = nums[4:], True
     with st.form(key=f'form_res_{index_jogo_editar or classe}'):
         if is_edit: st.info(f"Editando: **{jogo['Jogador 1']} vs {jogo['Jogador 2']}**")
-        else: jogo_sel = st.selectbox("Selecione o Jogo", jogos_pendentes.apply(lambda x: f"{x['Jogador 1']} vs {x['Jogador 2']}", axis=1), index=None)
+        else: jogo_sel = st.selectbox("Selecione o Jogo", jogos_pendentes.apply(lambda x: f"{x['Jogador 1']} vs {x['Jogador 2']}", axis=1), index=None, placeholder="Selecione um jogo")
         data_partida = st.date_input("Data da Partida", value=def_data)
         c1, c2 = st.columns(2)
-        s1j1, s1j2 = c1.text_input("Set 1-J1", def_scores[0]), c2.text_input("Set 1-J2", def_scores[1])
-        s2j1, s2j2 = c1.text_input("Set 2-J1", def_scores[2]), c2.text_input("Set 2-J2", def_scores[3])
+        s1j1, s1j2 = c1.text_input("Set 1-Jogador1", def_scores[0]), c2.text_input("Set 1-Jogador2", def_scores[1])
+        s2j1, s2j2 = c1.text_input("Set 2-Jogador1", def_scores[2]), c2.text_input("Set 2-Jogador2", def_scores[3])
         stb = st.checkbox("3º set (Super Tie-break)?", def_stb)
         s3j1, s3j2 = ('0', '0')
-        if stb: s3j1, s3j2 = c1.text_input("STB-J1", def_scores[4]), c2.text_input("STB-J2", def_scores[5])
+        if stb: s3j1, s3j2 = c1.text_input("STB-Jogador1", def_scores[4]), c2.text_input("STB-Jogador2", def_scores[5])
         if st.form_submit_button("Salvar"):
             try:
                 if not all([s1j1, s1j2, s2j1, s2j2]) or (stb and not all([s3j1, s3j2])): st.error("Preencha todos os campos."); return
@@ -298,4 +298,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
